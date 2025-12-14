@@ -6,6 +6,7 @@ export * from './types';
 
 // Services
 export * from './services/historyService';
+export * from './services/translationAPI';
 
 // Store (to be implemented)
 // export { default as useTranslatorStore } from './store/useTranslatorStore';

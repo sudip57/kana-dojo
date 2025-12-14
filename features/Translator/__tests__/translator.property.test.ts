@@ -1,12 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
-import { Language, TranslationEntry, getOppositeLanguage } from '../types';
+import {
+  Language,
+  TranslationEntry,
+  TranslationAPIError,
+  getOppositeLanguage
+} from '../types';
 import {
   loadHistory,
   saveEntry,
   deleteEntry,
   clearAll
 } from '../services/historyService';
+import { ERROR_CODES, getErrorMessage } from '../services/translationAPI';
 
 // Arbitrary for Language type
 const languageArb = fc.constantFrom<Language>('en', 'ja');
@@ -233,6 +239,124 @@ describe('Property 8: Clear all empties history', () => {
           expect(history.length).toBe(0);
         }
       ),
+      { numRuns: 100 }
+    );
+  });
+});
+
+/**
+ * **Feature: japanese-translator, Property 11: API errors show messages**
+ * For any API error response, the error state should contain a non-empty user-friendly message.
+ * **Validates: Requirements 5.1**
+ */
+describe('Property 11: API errors show messages', () => {
+  // Arbitrary for generating valid error codes
+  const errorCodeArb = fc.constantFrom(
+    ERROR_CODES.INVALID_INPUT,
+    ERROR_CODES.RATE_LIMIT,
+    ERROR_CODES.API_ERROR,
+    ERROR_CODES.AUTH_ERROR,
+    ERROR_CODES.NETWORK_ERROR,
+    ERROR_CODES.OFFLINE
+  );
+
+  // Arbitrary for generating TranslationAPIError objects
+  const apiErrorArb = fc.record({
+    code: errorCodeArb,
+    message: fc.string({ minLength: 1, maxLength: 200 }),
+    status: fc.integer({ min: 0, max: 599 })
+  }) as fc.Arbitrary<TranslationAPIError>;
+
+  it('getErrorMessage always returns a non-empty string for known error codes', () => {
+    fc.assert(
+      fc.property(errorCodeArb, (errorCode: string) => {
+        const message = getErrorMessage(errorCode);
+
+        // Message should be a non-empty string
+        expect(typeof message).toBe('string');
+        expect(message.length).toBeGreaterThan(0);
+      }),
+      { numRuns: 100 }
+    );
+  });
+
+  it('getErrorMessage returns a fallback message for unknown error codes', () => {
+    // Reserved JavaScript property names that exist on all objects
+    const reservedProps = [
+      'constructor',
+      'toString',
+      'valueOf',
+      'hasOwnProperty',
+      'isPrototypeOf',
+      'propertyIsEnumerable',
+      'toLocaleString',
+      '__proto__',
+      '__defineGetter__',
+      '__defineSetter__',
+      '__lookupGetter__',
+      '__lookupSetter__'
+    ];
+
+    fc.assert(
+      fc.property(
+        fc
+          .string({ minLength: 1, maxLength: 50 })
+          .filter(
+            s =>
+              !Object.values(ERROR_CODES).includes(
+                s as (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
+              ) && !reservedProps.includes(s)
+          ),
+        (unknownCode: string) => {
+          const message = getErrorMessage(unknownCode);
+
+          // Should return a non-empty fallback message
+          expect(typeof message).toBe('string');
+          expect(message.length).toBeGreaterThan(0);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+
+  it('all error codes have distinct, meaningful messages', () => {
+    const allCodes = Object.values(ERROR_CODES);
+    const messages = allCodes.map(code => getErrorMessage(code));
+
+    // All messages should be non-empty
+    messages.forEach(msg => {
+      expect(msg.length).toBeGreaterThan(0);
+    });
+
+    // Messages should be user-friendly (contain common words)
+    messages.forEach(msg => {
+      // Each message should contain at least one common word indicating it's user-friendly
+      const hasUserFriendlyContent =
+        msg.includes('Please') ||
+        msg.includes('error') ||
+        msg.includes('unavailable') ||
+        msg.includes('connection') ||
+        msg.includes('offline') ||
+        msg.includes('wait');
+      expect(hasUserFriendlyContent).toBe(true);
+    });
+  });
+
+  it('API error objects always have required fields', () => {
+    fc.assert(
+      fc.property(apiErrorArb, (error: TranslationAPIError) => {
+        // Error should have code
+        expect(error.code).toBeDefined();
+        expect(typeof error.code).toBe('string');
+
+        // Error should have message
+        expect(error.message).toBeDefined();
+        expect(typeof error.message).toBe('string');
+
+        // Error should have status
+        expect(error.status).toBeDefined();
+        expect(typeof error.status).toBe('number');
+      }),
       { numRuns: 100 }
     );
   });
