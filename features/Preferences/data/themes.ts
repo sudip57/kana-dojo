@@ -271,6 +271,12 @@ const baseThemeSets: BaseThemeGroup[] = [
         secondaryColor: 'oklch(87.28% 0.1705 94.99 / 1)'
       },
       {
+        id: 'hikaribina',
+        backgroundColor: 'oklch(28.5% 0.066 72.0 / 1)', 
+        mainColor: 'oklch(91.0% 0.220 352.0 / 1)',       
+        secondaryColor: 'oklch(93.0% 0.242 196.0 / 1)'   
+      },
+      {
         id: 'aizome',
         backgroundColor: 'oklch(21.50% 0.0352 256.92 / 1)',
         mainColor: 'oklch(65.35% 0.1437 250.97 / 1)',
